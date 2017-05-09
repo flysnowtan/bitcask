@@ -33,7 +33,7 @@ int BitCask :: Get(const std::string & sKey, std::string & sVal)
 
 	HashTable::iterator iter = m_HashTable.find(sKey);
 	if(iter == m_HashTable.end()) {
-		Log("not found", 1);
+//		Log("not found", 1);
 		return 1;
 	}
 
@@ -124,7 +124,6 @@ int BitCask :: Add(const std::string & sKey, const std::string & sVal)
 
 	stRecord.val = new char[sVal.size()];
 	memcpy(stRecord.val, sVal.c_str(), sVal.size());
-	stRecord.crc = 0;
 
 	ret = Add(stRecord);
 
@@ -144,7 +143,7 @@ int BitCask :: Delete(const std::string & sKey)
 
 	HashTable::iterator iter = m_HashTable.find(sKey);
 	if(iter == m_HashTable.end()) {
-		Log("no such record", 1);
+	//	Log("no such record", 1);
 		return 1;
 	}
 
@@ -164,5 +163,10 @@ int BitCask :: CheckKeyLen(const std::string & sKey)
 		return -1;
 	}
 	return 0;
+}
+
+int BitCask :: StartMerge()
+{
+	return m_Storage.GenerateMergeFile(m_HashTable);
 }
 
