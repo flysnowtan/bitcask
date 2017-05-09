@@ -524,18 +524,22 @@ int Storage :: MergeFile(int file_no, char suffix, HashTable & hashTable)
 
 		HashTable::iterator iter = hashTable.find(std::string(stRecord.key, stRecord.key_sz));
 		if(iter == hashTable.end()) {
+			if(stRecord.val) delete []stRecord.val, stRecord.val = NULL;
 			continue;
 		}
 
 		if((suffix == 'w' && iter->second.file_no != file_no)
 				|| (suffix == 'm' && iter->second.file_no != -file_no)
 				|| (iter->second.file_pos != next_file_pos - BITCASK_RECORD_LEN(stRecord.key_sz, stRecord.val_sz))) {
+			if(stRecord.val) delete []stRecord.val, stRecord.val = NULL;
 			continue;
 		}
 
 		char *pBuf = NULL;
 		uint32_t len = 0;
 		BitCaskUtils::Record2Buf(stRecord, &pBuf, &len);
+		if(stRecord.val) delete []stRecord.val, stRecord.val = NULL;
+
 		if(merge_file_pos + len > BITCASK_MAX_FILE_SIZE) {
 			merge_file_no++;
 			merge_file_pos = 0;
