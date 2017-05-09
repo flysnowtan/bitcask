@@ -19,6 +19,7 @@ class BitCask
 		int Add(uint64_t uin, const std::string & sVal);
 		int Delete(const std::string & sKey);
 		int Delete(uint64_t uin);
+		int StartMerge();
 	private:
 		int CheckKeyLen(const std::string & sKey);
 		int Add(struct Record_t &stRecord);

@@ -68,8 +68,8 @@ int BitCaskUtils :: GetRecordLen(char *pBuf, uint32_t len)
 	if(len == 0) {
 		return 0;
 	}
-	int iKeyLen = 0;
-	int iValLen = 0;
+	uint8_t iKeyLen = 0;
+	uint32_t iValLen = 0;
 
 	char *pPos = pBuf;
 	iKeyLen = *pPos;
@@ -109,6 +109,7 @@ int BitCaskUtils :: Buf2Record(char *pHeadBuf, uint32_t iHeadLen, char *pBuf, ui
 	pPos += sizeof(uint32_t);
 
 	assert(pPos - pBuf == len);
+//	printf("val_sz %d, crc %d\n", stRecord.val_sz, stRecord.crc);
 
 	return 0;
 }
