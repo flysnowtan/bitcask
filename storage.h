@@ -20,11 +20,13 @@ class Storage
 		int Open(uint32_t file_no, int iFlag, char suffix);
 		int FindFile(Compare cmp);
 		int LoadFile2HashTable(const char * sFileName, HashTable & hashTable);
-		int LoadFile2HashTable(char suffix, HashTable & hashTable);
 		int LoadBuf2HashTable(const char * sFileName, char * pBuf, int32_t len, HashTable & hashTable);
+		int LoadHintFile2HashTable(uint32_t file_no, char suffix, HashTable & hashTable);
+		int LoadWriteOrMergeFile2HashTable(uint32_t file_no, char suffix, HashTable & hashTable);
 		int AddRecord2MergeFile();
-		int MergeFile(int file_no, char suffix, HashTable & hashTable);
+		int MergeFile(int file_no, char suffix, int & merge_file_no, HashTable & hashTable);
 		int GetOneRecord(int fd, uint32_t file_pos, struct Record_t & stRecord);
+		int GetOneRecord(int fd, uint32_t file_pos, struct HintRec_t & stRecord);
 	private:
 		std::string m_FilePath;
 		struct FilePos m_CurFilePos;

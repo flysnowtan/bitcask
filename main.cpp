@@ -18,12 +18,12 @@ int main(void)
 	int key = 2000;
 	string val = "12345";
 
-	/*
 	ret = cask.StartMerge();
 	if(ret != 0) {
 		cout << "cask.StartMerge err: ret " << ret << endl;
 		return 0;
 	}
+	/*
 
 	ret = cask.Add(key, val);
 	if(ret != 0) {
@@ -43,34 +43,23 @@ int main(void)
 		cout<<" cask.get fail, ret " <<ret<<endl;
 		return 0;
 	}
-	*/
-	for(int i = 0; i < 2000; i++) {
-		ret = cask.Get(i, val);
+	srand(time(NULL));
+	for(int i = 0; i < 20000; i++) {
+		int rad = rand() %2000000;
+		ret = cask.Get(rad, val);
 		if(ret != 0 && ret != 1) {
 			cout<<" cask.get fail, ret " <<ret<<endl;
 			return 0;
 		} else if(ret == 0){
-			printf("get key %d , val %s\n", i, val.c_str());
+			printf("get key %d , val %s\n", rad, val.c_str());
 		} else {
-			printf("not found, key %d\n", i);
+			printf("not found, key %d\n", rad);
 		}
 	}
 
 	srand(time(NULL));
-	for(int i = 0; i < 100000; i++) {
+	for(int i = 0; i < 10000000; i++) {
 		int rad = rand() % 2000000;
-		/*
-		int rad = 1000;
-		char tmp[20] = {0};
-		snprintf(tmp, 20, "%d", rad);
-		string val = "valdddd";
-		val += tmp;
-		ret = cask.Add(rad, val);
-		if(ret != 0) {
-			cout << "cask.add fail , ret " << ret <<endl;
-			return 0;
-		}
-		*/
 		if(i % 4 == 0) {
 			char tmp[20] = {0};
 			snprintf(tmp, 20, "%d", rand());
@@ -90,7 +79,7 @@ int main(void)
 			} else if( ret == 1) {
 	//			printf("not found, key %d\n", rad);
 			} else {
-				printf("find key %d, value %s\n", rad, val.c_str());
+//				printf("find key %d, value %s\n", rad, val.c_str());
 			}
 		} else if(i % 4 == 2) {
 			char tmp[20] = {0};
@@ -113,5 +102,6 @@ int main(void)
 		}
 	}
 
+	*/
 	return 0;
 }

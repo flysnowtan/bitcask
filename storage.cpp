@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <string.h>
 #include "storage.h"
 #include "bitcaskutils.h"
 
@@ -322,7 +323,7 @@ int Storage :: Open(uint32_t file_no, int iFlag, char suffix)
 	snprintf(file_name, sizeof(file_name), "%s/bitcask_%u.%c", m_FilePath.c_str(), file_no, suffix);
 	fd = open(file_name, iFlag, 0666);
 	if(fd < 0) {
-		printf("open file fail, fd %d, errno %d\n", fd, errno);
+		printf("open file fail, fd %d, errno %d, strerror %s, file %s\n", fd, errno, strerror(errno), file_name);
 //		Log("open file fail", fd);
 		return -1;
 	}
@@ -330,51 +331,77 @@ int Storage :: Open(uint32_t file_no, int iFlag, char suffix)
 	return fd;
 }
 
-int Storage :: LoadFile2HashTable(char suffix, HashTable & hashTable)
-{
-	int file_len = 0;
-	//attention no file in the dir
-	DIR * pDir = opendir(m_FilePath.c_str());
-	if(pDir == NULL) {
-		Log("opendir fail", -1);
-		return -1;
-	}
-
-	struct dirent * pDirent = NULL;
-	while((pDirent = readdir(pDir)) != NULL) {
-		if(strncmp(pDirent->d_name, "..", 256) == 0
-				|| strncmp(pDirent->d_name, ".", 256) == 0) {
-			continue;
-		}
-		file_len = strlen(pDirent->d_name);
-		if(pDirent->d_name[file_len - 1] != suffix) {
-			continue;
-		}
-
-		int ret = LoadFile2HashTable(pDirent->d_name, hashTable);
-		if(ret != 0) {
-			Log("LoadFile2HashTable fail", ret);
-			if(pDir) closedir(pDir), pDir = NULL;
-			return -1;
-		}
-	}
-
-	if(pDir) closedir(pDir), pDir = NULL;
-	return 0;
-}
-
 int Storage :: Load2HashTable(HashTable & hashTable)
 {
-	int ret = LoadFile2HashTable('m', hashTable);
-	if(ret != 0) {
-		Log("LoadFile2HashTable fail", ret);
-		return -1;
+	//load .m file first
+	int min_merge_file_no = FindFile(CmpMinMergeFile);
+	int max_merge_file_no = FindFile(CmpMaxMergeFile);
+	int ret = 0;
+	char file_name[256] = {0};
+
+	if(min_merge_file_no > 0) {
+		for(int i = min_merge_file_no; i <= max_merge_file_no; i++) {
+			snprintf(file_name, sizeof(file_name), "bitcask_%d.h", i);
+			ret = LoadFile2HashTable(file_name, hashTable);
+			if(ret != 0) {
+				Log("LoadFile2HashTable err", ret);
+				continue;
+			}
+		}
 	}
 
-	ret = LoadFile2HashTable('w', hashTable);
-	if(ret != 0) {
-		Log("LoadFile2HashTable fail", ret);
-		return -1;
+	/*
+	if(min_merge_file_no > 0) {
+		//check hint exists or not
+		//if not, program exit unexpected last time
+		int max_no_hint_file_no = min_merge_file_no - 1;
+		//max_merge_file_no's hint always exist
+		for(int i = min_merge_file_no; i <= max_merge_file_no; i++) {
+			snprintf(file_name, sizeof(file_name), "%s/bitcask_%u.h", m_FilePath.c_str(), i);
+			ret = access(file_name, F_OK);
+			if(ret == 0) {
+				break;
+			} else {
+				max_no_hint_file_no = i;
+				printf("access result, ret %d, errno %d\n", ret, errno);
+			}
+		}
+		printf("max_no_hint_file_no %d\n", max_no_hint_file_no);
+
+		//load
+		for(int i = max_no_hint_file_no + 1; i <= max_merge_file_no; i++) {
+			snprintf(file_name, sizeof(file_name), "bitcask_%d.h", i);
+			ret = LoadFile2HashTable(file_name, hashTable);
+			if(ret != 0) {
+				Log("LoadFile2HashTable err", ret);
+				continue;
+			}
+		}
+
+		for(int i = min_merge_file_no; i <= max_no_hint_file_no; i++) {
+			snprintf(file_name, sizeof(file_name), "bitcask_%d.m", i);
+			ret = LoadFile2HashTable(file_name, hashTable);
+			if(ret != 0) {
+				Log("LoadFile2HashTable err", ret);
+				continue;
+			}
+		}
+	}
+	*/
+
+	//then load .w file
+	int min_write_file_no = FindFile(CmpMinWriteFile);
+	int max_write_file_no = FindFile(CmpMaxWriteFile);
+	if(min_write_file_no > 0) {
+		for(int i = min_write_file_no; i <= max_write_file_no; i++) {
+			snprintf(file_name, sizeof(file_name), "bitcask_%d.w", i);
+			//printf("file_name %s\n", file_name);
+			ret = LoadFile2HashTable(file_name, hashTable);
+			if(ret != 0) {
+				Log("LoadFile2HashTable err", ret);
+				continue;
+			}
+		}
 	}
 
 	return 0;
@@ -382,45 +409,91 @@ int Storage :: Load2HashTable(HashTable & hashTable)
 
 int Storage :: LoadFile2HashTable(const char * sFileName, HashTable & hashTable)
 {
+	//todo: .h .m .w, load file
 	if(sFileName == NULL) {
 		return 0;
 	}
-	struct stat stat_buf;
-	std::string sFilePath = m_FilePath + "/";
-	sFilePath += sFileName;
-	int ret = stat(sFilePath.c_str(), &stat_buf);
-	if(ret != 0) {
-		Log("stat fail", ret);
-		return -1;
-	}
-	//if size is too large, err occur
-	//todo: new once one record
-	char * pBuf = new char[stat_buf.st_size];
-	int fd = open(sFilePath.c_str(), O_RDONLY, 0666);
-	if(fd < 0) {
-		Log("open file fail", fd);
-		return -1;
-	}
 
-	int size = 0;
-	int iLeft = stat_buf.st_size;
-	char *pReadPos = pBuf;
-	while(iLeft > 0) {
-		size = read(fd, pReadPos, iLeft);
-		if(size < 0) {
-			Log("read err", size);
-			if(pBuf) delete []pBuf, pBuf = NULL;
+	int ret = 0;
+	uint32_t file_no;
+	char suffix;
+	sscanf(sFileName, "bitcask_%u.%c", &file_no, &suffix);
+	if(suffix == 'h') {
+		ret = access(sFileName, F_OK);
+		if(ret == 0) {
+			ret = LoadHintFile2HashTable(file_no, suffix, hashTable);
+			if(ret != 0) {
+				Log("LoadHintFile2HashTable fail", ret);
+				return -1;
+			}
+		} else if(errno == ENOENT) {
+			ret = LoadWriteOrMergeFile2HashTable(file_no, 'm', hashTable);
+			if(ret != 0) {
+				Log("LoadWriteOrMergeFile2HashTable fail", ret);
+				return -1;
+			}
+		}
+
+	} else {
+		ret = LoadWriteOrMergeFile2HashTable(file_no, suffix, hashTable);
+		if(ret != 0) {
+			Log("LoadWriteOrMergeFile2HashTable fail", ret);
 			return -1;
-		} else {
-			iLeft -= size;
-			pReadPos += size;
 		}
 	}
 
+	return 0;
+}
 
-	ret = LoadBuf2HashTable(sFileName, pBuf, stat_buf.st_size, hashTable);
-	if(pBuf) delete []pBuf, pBuf = NULL;
-	return ret;
+int Storage :: LoadHintFile2HashTable(uint32_t file_no, char suffix, HashTable & hashTable)
+{
+	int fd = Open(file_no, O_RDONLY, suffix);
+	if(fd < 0) {
+		Log("Open err", fd);
+		return -1;
+	}
+	
+	char file_name[256];
+	int next_file_pos = 0;
+	int ret = 0;
+	struct HintRec_t stRecord;
+	while((next_file_pos = GetOneRecord(fd, next_file_pos, stRecord)) > 0) {
+		std::string sKey(stRecord.key, stRecord.key_sz);
+			hashTable[sKey] = stRecord.hashItem;
+	}
+
+	return 0;
+}
+
+int Storage :: LoadWriteOrMergeFile2HashTable(uint32_t file_no, char suffix, HashTable & hashTable)
+{
+	int fd = Open(file_no, O_RDONLY, suffix);
+	if(fd < 0) {
+		Log("Open err", fd);
+		return -1;
+	}
+	
+	char file_name[256];
+	int next_file_pos = 0;
+	int ret = 0;
+	struct Record_t stRecord;
+	while((next_file_pos = GetOneRecord(fd, next_file_pos, stRecord)) > 0) {
+		std::string sKey(stRecord.key, stRecord.key_sz);
+		if(stRecord.val_sz == 0 && stRecord.val == NULL) {
+			hashTable.erase(sKey);
+		} else {
+			struct HashItem_t stItem;
+			if(suffix == 'm') {
+				stItem.file_no = -file_no;
+			} else {
+				stItem.file_no = file_no;
+			}
+			stItem.file_pos = next_file_pos - BITCASK_RECORD_LEN(stRecord.key_sz, stRecord.val_sz);
+			hashTable[sKey] = stItem;
+		}
+	}
+
+	return 0;
 }
 
 int Storage :: LoadBuf2HashTable(const char *sFileName, char * pBuf, int32_t len, HashTable & hashTable)
@@ -461,9 +534,21 @@ int Storage :: GenerateMergeFile(HashTable & hashTable)
 	int min_merge_file_no = FindFile(CmpMinMergeFile);
 	int max_merge_file_no = FindFile(CmpMaxMergeFile);
 	int ret = 0;
+	char file_name[256] = {0};
+	int merge_file_no = max_merge_file_no + 1;
+
 	if(min_merge_file_no > 0) {
-		for(int i = min_merge_file_no; i < max_merge_file_no; i++) {
-			ret = MergeFile(i, 'm', hashTable);
+		/*
+		//如果merge文件再次merge，在此时出错，由于之前的merge文件删除了hint文件，这样就知道merge出错的地方。
+		//从而在初始化的时候，保证加载hash表的顺序。
+		for(int i = min_merge_file_no; i <= max_merge_file_no; i++) {
+			snprintf(file_name, sizeof(file_name), "%s/bitcask_%u.h", m_FilePath.c_str(), i);
+			remove(file_name);
+		}
+		*/
+
+		for(int i = min_merge_file_no; i <= max_merge_file_no; i++) {
+			ret = MergeFile(i, 'm', merge_file_no, hashTable);
 			if(ret != 0) {
 				Log("MergeFile err", ret);
 				continue;
@@ -476,7 +561,7 @@ int Storage :: GenerateMergeFile(HashTable & hashTable)
 	int max_write_file_no = FindFile(CmpMaxWriteFile);
 	if(min_write_file_no > 0) {
 		for(int i = min_write_file_no; i < max_write_file_no; i++) {
-			ret = MergeFile(i, 'w', hashTable);
+			ret = MergeFile(i, 'w', merge_file_no, hashTable);
 			if(ret != 0) {
 				Log("MergeFile err", ret);
 				continue;
@@ -487,14 +572,8 @@ int Storage :: GenerateMergeFile(HashTable & hashTable)
 	return 0;
 }
 
-int Storage :: MergeFile(int file_no, char suffix, HashTable & hashTable)
+int Storage :: MergeFile(int file_no, char suffix, int & merge_file_no, HashTable & hashTable)
 {
-	int max_merge_file_no = FindFile(CmpMaxMergeFile);
-	if(max_merge_file_no < 0) {
-		Log("FindFile err", max_merge_file_no);
-		return -1;
-	}
-
 	int fd = Open(file_no, O_RDONLY, suffix);
 	if(fd < 0) {
 		Log("Open err", fd);
@@ -505,18 +584,23 @@ int Storage :: MergeFile(int file_no, char suffix, HashTable & hashTable)
 	int next_file_pos = 0;
 	int ret = 0;
 	struct Record_t stRecord;
-	int32_t merge_file_no = (max_merge_file_no == 0 ? 1 : max_merge_file_no);
 	uint32_t merge_file_pos = 0;
 	int merge_fd = -1;
-	if(max_merge_file_no > 0) {
+	int hint_fd = -1;
+	if(merge_file_no > 0) {
 		snprintf(file_name, sizeof(file_name), "%s/bitcask_%u.m", m_FilePath.c_str(), merge_file_no);
 		struct stat stat_buf;
 		ret = stat(file_name, &stat_buf);
 		if(ret != 0) {
-			Log("stat fail", ret);
-			return -1;
+			if(errno == ENOENT) {
+				merge_file_pos = 0;
+			} else {
+				Log("stat fail", ret);
+				return -1;
+			}
+		} else {
+			merge_file_pos = stat_buf.st_size;
 		}
-		merge_file_pos = stat_buf.st_size;
 	}
 
 	while((next_file_pos = GetOneRecord(fd, next_file_pos, stRecord)) > 0) {
@@ -546,7 +630,11 @@ int Storage :: MergeFile(int file_no, char suffix, HashTable & hashTable)
 			if(merge_fd > 0) {
 				close(merge_fd);
 			}
+			if(hint_fd > 0) {
+				close(hint_fd);
+			}
 			merge_fd = -1;
+			hint_fd = -1;
 		}
 
 		if(merge_fd == -1) {
@@ -557,32 +645,51 @@ int Storage :: MergeFile(int file_no, char suffix, HashTable & hashTable)
 				close(fd);
 				return -1;
 			}
+
+			hint_fd = Open(merge_file_no, O_CREAT | O_WRONLY | O_APPEND, 'h');
+			if(hint_fd < 0) {
+				if(pBuf) delete []pBuf, pBuf = NULL;
+				Log("Open fail", hint_fd);
+				close(fd);
+				close(merge_fd);
+				return -1;
+			}
 		}
 
 		struct HashItem_t hashItem;
 		hashItem.file_no = -merge_file_no;
 		hashItem.file_pos = merge_file_pos;
 
-		int size = 0;
-		int iLeft = len;
-		char *pWritePos = pBuf;
-		while(iLeft > 0) {
-			size = write(merge_fd, pWritePos, iLeft);
-			if(size < 0) {
-				Log("write fail", size);
-				if(pBuf) delete []pBuf, pBuf = NULL;
-				close(fd);
-				close(merge_fd);
-				return -1;
-			} else {
-				iLeft -= size;
-				pWritePos += size;
-			}
+		ret = BitCaskUtils::Write2File(merge_fd, pBuf, len);
+		if(pBuf) delete []pBuf, pBuf = NULL;
+
+		if(ret != 0) {
+			Log("Write2File fail", ret);
+			close(fd);
+			close(merge_fd);
+			close(hint_fd);
+			return -1;
 		}
 
-		if(pBuf) delete []pBuf, pBuf = NULL;
 		merge_file_pos += len;
 		hashTable[std::string(stRecord.key, stRecord.key_sz)] = hashItem;
+		//append to hint file
+		struct HintRec_t hintRec;
+		hintRec.key_sz = stRecord.key_sz;
+		memcpy(hintRec.key, stRecord.key, stRecord.key_sz);
+		hintRec.hashItem = hashItem;
+
+		BitCaskUtils::HintRec2Buf(hintRec, &pBuf, &len);
+		ret = BitCaskUtils::Write2File(hint_fd, pBuf, len);
+		if(pBuf) delete []pBuf, pBuf = NULL;
+		if(ret != 0) {
+			Log("Write2File fail", ret);
+			close(fd);
+			close(merge_fd);
+			close(hint_fd);
+			return -1;
+		}
+
 //		printf("hashitem for merge, file_no %d, file_pos %d\n", hashItem.file_no, hashItem.file_pos);
 	}
 
@@ -590,10 +697,63 @@ int Storage :: MergeFile(int file_no, char suffix, HashTable & hashTable)
 	if(merge_fd > 0) {
 		close(merge_fd);
 	}
+	if(hint_fd > 0) {
+		close(hint_fd);
+	}
+
 	snprintf(file_name, sizeof(file_name), "%s/bitcask_%u.%c", m_FilePath.c_str(), file_no, suffix);
 	printf("remove file_name %s, merge file %d\n", file_name, merge_file_no);
 	remove(file_name);
+	if(suffix == 'm') {
+		snprintf(file_name, sizeof(file_name), "%s/bitcask_%u.h", m_FilePath.c_str(), file_no);
+		remove(file_name);
+	}
 
 	return 0;
+}
+
+int Storage :: GetOneRecord(int fd, uint32_t file_pos, struct HintRec_t & stRecord)
+{
+	char sBuf[BITCASK_HINTREC_HAED_LEN];
+	ssize_t size = pread(fd, sBuf, sizeof(sBuf), file_pos);
+	if(size == 0) {
+		return 0;
+	} else if(size != sizeof(sBuf)) {
+		Log("pread err, diff len", size);
+		return -1;
+	}
+
+	file_pos += size;
+	stRecord.key_sz = *sBuf;
+
+
+	int iRecordLen = BITCASK_HINTREC_LEN(stRecord.key_sz);
+	iRecordLen -= size;
+	assert(iRecordLen > 0);
+	char * pBuf = new char[iRecordLen];
+	size = pread(fd, pBuf, iRecordLen, file_pos);
+
+	if(size == 0) {
+		if(pBuf) delete []pBuf, pBuf = NULL;
+		return 0;
+	} else if(size != iRecordLen) {
+		printf("pread err, diff len, size %d, recordlen %d\n", size, iRecordLen);
+		if(pBuf) delete []pBuf, pBuf = NULL;
+		return -1;
+	}
+
+	char *pPos = pBuf;
+	memcpy(stRecord.key, pPos, stRecord.key_sz);
+	pPos += stRecord.key_sz;
+
+	memcpy(&(stRecord.hashItem), pPos, sizeof(stRecord.hashItem));
+	pPos += sizeof(stRecord.hashItem);
+	assert(pPos - pBuf == iRecordLen);
+
+	if(pBuf) delete []pBuf, pBuf = NULL;
+	
+//	printf("val %s, crc %d, valempty %d\n", std::string(stRecord.val, stRecord.val_sz).c_str(), stRecord.crc, stRecord.val == NULL);
+
+	return file_pos + iRecordLen;
 }
 

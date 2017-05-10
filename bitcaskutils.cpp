@@ -148,4 +148,42 @@ int BitCaskUtils :: GetBufInfo(char *pBuf, uint32_t len, uint32_t & recordLen, s
 	return 0;
 }
 
+int BitCaskUtils :: Write2File(int fd, char *pBuf, uint32_t len)
+{
+	int size = 0;
+	int iLeft = len;
+	char *pWritePos = pBuf;
+	while(iLeft > 0) {
+		size = write(fd, pWritePos, iLeft);
+		if(size < 0) {
+			Log("write fail", size);
+			return -1;
+		} else {
+			iLeft -= size;
+			pWritePos += size;
+		}
+	}
 
+	return 0;
+}
+
+int BitCaskUtils :: HintRec2Buf(struct HintRec_t hintRec, char **ppBuf, uint32_t *len)
+{
+	uint32_t iLen = BITCASK_HINTREC_LEN(hintRec.key_sz);
+	char *pBuf = new char[iLen];
+	*ppBuf = pBuf;
+
+	*pBuf = hintRec.key_sz;
+	pBuf += sizeof(uint8_t);
+
+	memcpy(pBuf, hintRec.key, hintRec.key_sz);
+	pBuf += hintRec.key_sz;
+
+	memcpy(pBuf, &(hintRec.hashItem), sizeof(struct HashItem_t));
+	pBuf += sizeof(struct HashItem_t);
+
+	assert(pBuf - *ppBuf == iLen);
+	*len = iLen;
+
+	return 0;
+}
