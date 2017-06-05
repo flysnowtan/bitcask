@@ -4,6 +4,8 @@
 
 #include "bitcask_global.h"
 #include "storage.h"
+#include "filelock.h"
+#include "../tmutexlock.h"
 		
 class BitCask
 {
@@ -26,4 +28,5 @@ class BitCask
 	private:
 		HashTable m_HashTable;
 		Storage m_Storage;
+		clsFileLock * m_FileLock;
 };

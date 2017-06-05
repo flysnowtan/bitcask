@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <string>
 #include "bitcask_global.h"
+#include "filelock.h"
 
 class Storage
 {
@@ -15,7 +16,7 @@ class Storage
 		int Delete(const std::string & sKey);
 
 		int Load2HashTable(HashTable & hashTable);
-		int GenerateMergeFile(HashTable & hashTable);
+		int GenerateMergeFile(HashTable & hashTable, clsFileLock *fileLock);
 	private:
 		int Open(uint32_t file_no, int iFlag, char suffix);
 		int FindFile(Compare cmp);
@@ -24,7 +25,7 @@ class Storage
 		int LoadHintFile2HashTable(uint32_t file_no, char suffix, HashTable & hashTable);
 		int LoadWriteOrMergeFile2HashTable(uint32_t file_no, char suffix, HashTable & hashTable);
 		int AddRecord2MergeFile();
-		int MergeFile(int file_no, char suffix, int & merge_file_no, HashTable & hashTable);
+		int MergeFile(int file_no, char suffix, int & merge_file_no, HashTable & hashTable, clsFileLock *fileLock);
 		int GetOneRecord(int fd, uint32_t file_pos, struct Record_t & stRecord);
 		int GetOneRecord(int fd, uint32_t file_pos, struct HintRec_t & stRecord);
 	private:

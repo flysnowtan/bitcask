@@ -18,12 +18,12 @@ int main(void)
 	int key = 2000;
 	string val = "12345";
 
+	/*
 	ret = cask.StartMerge();
 	if(ret != 0) {
 		cout << "cask.StartMerge err: ret " << ret << endl;
 		return 0;
 	}
-	/*
 
 	ret = cask.Add(key, val);
 	if(ret != 0) {
@@ -53,7 +53,7 @@ int main(void)
 		} else if(ret == 0){
 			printf("get key %d , val %s\n", rad, val.c_str());
 		} else {
-			printf("not found, key %d\n", rad);
+			//printf("not found, key %d\n", rad);
 		}
 	}
 
@@ -63,7 +63,7 @@ int main(void)
 		if(i % 4 == 0) {
 			char tmp[20] = {0};
 			snprintf(tmp, 20, "%d", rand());
-			string val = "val145ddd6";
+			string val = "alberttest";
 			val += tmp;
 			ret = cask.Add(rad, val);
 			if(ret != 0) {
@@ -81,10 +81,10 @@ int main(void)
 			} else {
 //				printf("find key %d, value %s\n", rad, val.c_str());
 			}
-		} else if(i % 4 == 2) {
+		} else if(i % 4 == 5) {
 			char tmp[20] = {0};
 			snprintf(tmp, 20, "%d", rand());
-			string val = "val145ddd6";
+			string val = "alberttest";
 			val += tmp;
 			ret = cask.Set(rad, val);
 			if(ret != 0) {
@@ -92,16 +92,15 @@ int main(void)
 				return 0;
 			}
 		} else if(i % 4 == 3) {
-			ret = cask.Delete(rad);
-			if(ret != 0 && ret != 1) {
-				cout << "cask.delete fail, ret " << ret <<endl;
-				return 0;
-			} else if(ret == 1) {
+	//		ret = cask.Delete(rad);
+	//		if(ret != 0 && ret != 1) {
+	//			cout << "cask.delete fail, ret " << ret <<endl;
+	//			return 0;
+	//		} else if(ret == 1) {
 	//			printf("delete not found, key %d\n", rad);
-			}
+	//		}
 		}
 	}
-
 	*/
 	return 0;
 }

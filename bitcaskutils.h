@@ -14,4 +14,7 @@ class BitCaskUtils
 
 		static int Write2File(int fd, char *pBuf, uint32_t len);
 		static int HintRec2Buf(struct HintRec_t hintRec, char **ppBuf, uint32_t *len);
+
+		static uint32_t HashFunc(const std::string &sInput);
 };
+

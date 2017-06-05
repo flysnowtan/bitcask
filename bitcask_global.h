@@ -6,12 +6,13 @@
 
 #define BITCAKS_CRC_NUM 1115
 #define BITCASK_MAX_KEY_LEN 8
-#define BITCASK_MAX_FILE_SIZE 1024*1024*2
+#define BITCASK_MAX_FILE_SIZE 1024*1024*64
 #define BITCASK_RECORD_BEGIN_LEN (sizeof(uint8_t) + sizeof(uint32_t))
 #define BITCASK_RECORD_LEN(key_sz, val_sz) (BITCASK_RECORD_BEGIN_LEN + key_sz + val_sz + sizeof(uint32_t))
 #define BITCASK_DEFAULT_PATH "/home/alberttan/bitcask_path"
 #define BITCASK_HINTREC_LEN(key_sz) (sizeof(uint8_t) + key_sz + sizeof(struct HashItem_t))
 #define BITCASK_HINTREC_HAED_LEN (sizeof(uint8_t))
+#define BITCAKS_HASH_COUNT 1024
 
 #define Log(str, ret)	do {printf("ERR: %s->%d, errmsg: %s, ret %d\n", __func__, __LINE__, str, ret); }while(0)
 struct Record_t {

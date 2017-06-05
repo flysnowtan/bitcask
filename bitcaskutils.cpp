@@ -187,3 +187,9 @@ int BitCaskUtils :: HintRec2Buf(struct HintRec_t hintRec, char **ppBuf, uint32_t
 
 	return 0;
 }
+
+uint32_t BitCaskUtils :: HashFunc(const std::string &sInput)
+{
+	return 0;
+}
+
